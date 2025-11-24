@@ -8,14 +8,30 @@
     <form action="{{ route('transaksi-keluar.store') }}" method="POST" class="bg-white p-4 rounded shadow">
         @csrf
 
-        <div class="mb-3">
-            <label class="form-label">Kode Transaksi</label>
-            <input type="text" name="kode_transaksi" class="form-control" required>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Kode Transaksi (Otomatis)</label>
+                {{-- Readonly --}}
+                <input type="text" name="kode_transaksi" class="form-control bg-light" value="{{ $kodeOtomatis }}" readonly>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Tanggal Transaksi</label>
+                {{-- Tanggal Manual --}}
+                <input type="datetime-local" name="created_at" class="form-control"
+                    value="{{ now()->format('Y-m-d\TH:i') }}" required>
+            </div>
         </div>
 
         <div class="mb-3">
             <label class="form-label">Customer</label>
-            <input type="text" name="customer" class="form-control" required>
+            {{-- Dropdown Customer --}}
+            <select name="customer_id" class="form-select" required>
+                <option value="">-- Pilih Customer --</option>
+                @foreach ($customers as $cus)
+                    <option value="{{ $cus->id }}">{{ $cus->nama_customer }}</option>
+                @endforeach
+            </select>
         </div>
 
         <div class="mb-3">
@@ -27,8 +43,8 @@
         <h5>Detail Barang</h5>
 
         <div id="detail-barang-wrapper">
-            <div class="detail-barang-item">
-                <div class="row mb-3 align-items-end barang-row">
+            <div class="detail-barang-item border-bottom pb-3 mb-3">
+                <div class="row align-items-end barang-row">
                     <div class="col-md-4">
                         <label class="form-label">Barang</label>
                         <select name="barang_id[]" class="form-select barang-select" required>
@@ -47,18 +63,21 @@
                         <input type="number" name="jumlah[]" class="form-control jumlah-input" min="1" required>
                     </div>
 
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <label class="form-label">Harga Jual</label>
                         <input type="number" name="harga_jual[]" class="form-control" min="0" required>
                     </div>
-                    <div class="col-md-4">
-                        <button type="button" class="btn btn-danger btn-remove-detail">Hapus</button>
+                    <div class="col-md-3">
+                        <label class="form-label d-block">&nbsp;</label>
+                        <button type="button" class="btn btn-danger btn-remove-detail w-100"><i class="bi bi-trash"></i>
+                            Hapus</button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <button type="button" id="btn-add-detail" class="btn btn-secondary">+ Tambah Barang</button>
+        <button type="button" id="btn-add-detail" class="btn btn-secondary"><i class="bi bi-plus-circle"></i> Tambah
+            Barang</button>
         <button type="submit" class="btn btn-success text-white rounded float-end">Simpan Transaksi</button>
     </form>
 
@@ -66,11 +85,8 @@
         document.addEventListener('DOMContentLoaded', function() {
             const wrapper = document.getElementById('detail-barang-wrapper');
             const btnAdd = document.getElementById('btn-add-detail');
-
-            // Template untuk baris baru
             const template = wrapper.querySelector('.detail-barang-item').cloneNode(true);
 
-            // Fungsi untuk mengambil stok
             function fetchStok(selectElement) {
                 const barangId = selectElement.value;
                 const parent = selectElement.closest('.barang-row');
@@ -96,21 +112,18 @@
                     });
             }
 
-            // Tombol "Tambah Barang"
             btnAdd.addEventListener('click', function() {
                 const newItem = template.cloneNode(true);
                 newItem.querySelectorAll('input').forEach(input => input.value = '');
                 newItem.querySelector('select').selectedIndex = 0;
-                newItem.querySelector('.stok-info').textContent = ''; // Kosongkan info stok
+                newItem.querySelector('.stok-info').textContent = '';
                 newItem.querySelector('.jumlah-input').placeholder = '';
                 newItem.querySelector('.jumlah-input').max = null;
                 wrapper.appendChild(newItem);
             });
 
-            // Event listener untuk "Hapus" dan "Cek Stok" (Event Delegation)
             wrapper.addEventListener('click', function(e) {
-                // Jika tombol "Hapus" diklik
-                if (e.target.classList.contains('btn-remove-detail')) {
+                if (e.target.closest('.btn-remove-detail')) {
                     const items = wrapper.querySelectorAll('.detail-barang-item');
                     if (items.length > 1) {
                         e.target.closest('.detail-barang-item').remove();
@@ -119,16 +132,8 @@
             });
 
             wrapper.addEventListener('change', function(e) {
-                // Jika dropdown "Barang" diganti
                 if (e.target.classList.contains('barang-select')) {
                     fetchStok(e.target);
-                }
-            });
-
-            // Panggil fetchStok untuk baris pertama (jika sudah terisi saat validasi gagal)
-            wrapper.querySelectorAll('.barang-select').forEach(select => {
-                if (select.value) {
-                    fetchStok(select);
                 }
             });
         });

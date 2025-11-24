@@ -113,6 +113,11 @@
                             class="bi bi-box-arrow-in-left"></i>
                         Barang Masuk</a>
 
+                    {{-- MENU BARU: MASTER SUPPLIER --}}
+                    <a href="{{ route('suppliers.index') }}" class="nav-link text-white"><i
+                            class="bi bi-people me-1"></i>
+                        Master Supplier</a>
+
                     <a href="{{ route('mutasi-kondisi.create') }}" class="nav-link text-white"><i
                             class="bi bi-arrow-repeat"></i>
                         Mutasi Stok</a>
@@ -127,7 +132,12 @@
                 {{-- MENU UNTUK ADMIN DAN KASIR --}}
                 @if (Auth::user()->isAdmin() || Auth::user()->isKasir())
                     <a href="{{ route('transaksi-keluar.index') }}" class="nav-link text-white"><i
-                            class="bi bi-box-arrow-right"></i></i> Barang Keluar</a>
+                            class="bi bi-box-arrow-right"></i> Barang Keluar</a>
+
+                    {{-- MENU BARU: MASTER CUSTOMER --}}
+                    <a href="{{ route('customers.index') }}" class="nav-link text-white"><i
+                            class="bi bi-people-fill me-1"></i>
+                        Master Customer</a>
                 @endif
 
                 {{-- MENU KHUSUS ADMIN (Laporan Transaksi) --}}

@@ -10,89 +10,62 @@ use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 
-// --- RUTE LOGIN (PUBLIK) ---
+// --- PUBLIC ROUTES ---
 Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/', [LoginController::class, 'login'])->name('login.process');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
-
-// --- RUTE YANG MEMBUTUHKAN LOGIN ---
+// --- PROTECTED ROUTES ---
 Route::middleware('auth')->group(function () {
 
-    // --- RUTE "HOME" SETELAH LOGIN ---
+    // Redirect Home berdasarkan Role
     Route::get('/home', function () {
-
-        /** @var \App\Models\User $user */ // <-- TAMBAHKAN BARIS INI
+        /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        // Garis merah di sini akan hilang
-        if ($user->isAdmin()) {
+        if ($user->isAdmin())
             return redirect()->route('dashboard');
-        } elseif ($user->isKasir()) {
-            return redirect()->route('transaksi-keluar.index'); // Home Kasir
-        } elseif ($user->isGudang()) {
-            return redirect()->route('transaksi-masuk.index'); // Home Gudang
-        }
-        return redirect()->route('login'); // Fallback
+        if ($user->isGudang())
+            return redirect()->route('transaksi-masuk.index');
+        if ($user->isKasir())
+            return redirect()->route('transaksi-keluar.index');
+
+        return redirect()->route('login');
     })->name('home');
 
-
-    // --- RUTE UNTUK GUDANG, KASIR, & ADMIN ---
+    // === GROUP 1: AKSES DATA BARANG (Admin, Gudang, Kasir) ===
     Route::middleware('role:admin,gudang,kasir')->group(function () {
-
-        // --- Full CRUD Barang untuk Admin, Gudang, DAN Kasir ---
-        Route::get('barang', [BarangController::class, 'index'])->name('barang.index');
-        Route::get('barang/create', [BarangController::class, 'create'])->name('barang.create');
-        Route::post('barang', [BarangController::class, 'store'])->name('barang.store');
-        Route::get('barang/{barang}/edit', [BarangController::class, 'edit'])->name('barang.edit');
-        Route::put('barang/{barang}', [BarangController::class, 'update'])->name('barang.update');
-
-        // Rute Hapus dipindahkan ke sini agar Kasir bisa akses
-        Route::delete('barang/{barang}', [BarangController::class, 'destroy'])->name('barang.destroy');
-    });
-
-    // --- RUTE UNTUK GUDANG & ADMIN ---
-    Route::middleware('role:admin,gudang')->group(function () {
-
-        // (Rute CRUD barang sudah dipindah ke atas)
-
-        // Laporan Stok (Hanya Gudang & Admin)
-        Route::get('list', [BarangController::class, 'list'])->name('barang.list');
-        Route::get('rusak', [BarangController::class, 'rusak'])->name('barang.rusak');
-
-        // Transaksi Masuk (Home Gudang)
-        Route::get('transaksi-masuk', [TransaksiMasukController::class, 'index'])->name('transaksi-masuk.index');
-        Route::get('transaksi-masuk/create', [TransaksiMasukController::class, 'create'])->name('transaksi-masuk.create');
-        Route::post('transaksi-masuk', [TransaksiMasukController::class, 'store'])->name('transaksi-masuk.store');
-        Route::get('/transaksi-masuk/export', [TransaksiMasukController::class, 'export'])->name('transaksi-masuk.export');
-
-        // Mutasi Kondisi
-        Route::resource('mutasi-kondisi', MutasiKondisiController::class)->only(['create', 'store']);
-    });
-
-    // --- RUTE UNTUK KASIR & ADMIN ---
-    Route::middleware('role:admin,kasir')->group(function () {
-
-        // Transaksi Keluar (Home Kasir)
-        Route::get('transaksi-keluar', [TransaksiKeluarController::class, 'index'])->name('transaksi-keluar.index');
-        Route::get('transaksi-keluar/create', [TransaksiKeluarController::class, 'create'])->name('transaksi-keluar.create');
-        Route::post('transaksi-keluar', [TransaksiKeluarController::class, 'store'])->name('transaksi-keluar.store');
-        Route::get('/transaksi-keluar/export', [TransaksiKeluarController::class, 'export'])->name('transaksi-keluar.export');
-        Route::get('/transaksi-keluar/{id}/print', [TransaksiKeluarController::class, 'print'])->name('transaksi-keluar.print');
-
-        // Helper untuk Get Stok (dibutuhkan form transaksi keluar)
+        Route::get('barang/export', [BarangController::class, 'export'])->name('barang.export');
+        Route::resource('barang', BarangController::class);
         Route::get('/get-stok-barang/{id}', [BarangController::class, 'getStok'])->name('barang.getStok');
     });
 
-    // --- RUTE KHUSUS ADMIN ---
+    // === GROUP 2: BARANG MASUK & MUTASI & SUPPLIER (Admin, Gudang) ===
+    Route::middleware('role:admin,gudang')->group(function () {
+        Route::get('transaksi-masuk/export', [TransaksiMasukController::class, 'export'])->name('transaksi-masuk.export');
+        Route::resource('transaksi-masuk', TransaksiMasukController::class)->only(['index', 'create', 'store']);
+
+        // TAMBAHAN: Route Supplier
+        Route::resource('suppliers', \App\Http\Controllers\SupplierController::class);
+
+        Route::get('list', [BarangController::class, 'list'])->name('barang.list');
+        Route::get('rusak', [BarangController::class, 'rusak'])->name('barang.rusak');
+        Route::resource('mutasi-kondisi', MutasiKondisiController::class)->only(['create', 'store']);
+    });
+
+    // === GROUP 3: BARANG KELUAR & CUSTOMER (Admin, Kasir) ===
+    Route::middleware('role:admin,kasir')->group(function () {
+        Route::get('transaksi-keluar/export', [TransaksiKeluarController::class, 'export'])->name('transaksi-keluar.export');
+        Route::get('transaksi-keluar/{id}/print', [TransaksiKeluarController::class, 'print'])->name('transaksi-keluar.print');
+        Route::resource('transaksi-keluar', TransaksiKeluarController::class)->only(['index', 'create', 'store', 'show']);
+
+        // TAMBAHAN: Route Customer
+        Route::resource('customers', \App\Http\Controllers\CustomerController::class);
+    });
+
+    // === GROUP 4: DASHBOARD & LAPORAN (Admin Only) ===
     Route::middleware('role:admin')->group(function () {
-
-        // Dashboard (Home Admin)
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-
-        // (Rute Hapus Barang sudah dipindah ke atas)
-
-        // Laporan Transaksi (Keuangan)
         Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
     });
 });
